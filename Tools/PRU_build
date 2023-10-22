@@ -1,9 +1,0 @@
-#!/bin/bash
-pasm -b /home/debian/sappho-pda/Code/PRU/PRU0.p
-sleep .1
-pasm -b /home/debian/sappho-pda/Code/PRU/PRU1.p
-sleep .1
-mv PRU0.bin /home/debian/sappho-pda/Code/PRU/
-sleep .1
-mv PRU1.bin /home/debian/sappho-pda/Code/PRU/
-sleep .1

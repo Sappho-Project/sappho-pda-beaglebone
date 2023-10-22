@@ -23,7 +23,6 @@
 * for any damages caused by use of this software.   *
 *                                                   *
 *****************************************************
-
 *****************************************************
 *                                                   *
 * Adapted for the S,AP.P.H.O PDA project by:        *
@@ -55,8 +54,6 @@ double intgr_time;
 double fps;
 
 uint16_t intgr_delay;
-uint32_t extra_time;
-uint16_t prog_total_cycles = 3099; //number of CLK pulses/frame, without the extra time delay (2 * 1500 pixels + 2 * 32 dummy outputs + 2* 14 dummy outputs + 7 CLK pulses for the ICG stage)
 
 /*************************/
 /* Function Declarations */
@@ -155,39 +152,32 @@ static uint32_t Argv_Handler(int *argc, char *argv[])
 	
 	if (*argc != ARGUMENTS_NUM) {
 		printf("Incorrect arguments.\n");
-		printf("Example: ./sappho_exec 10 120 50\n");
+		printf("Example: ./pda_drivers 10 120\n");
 		printf("First argument: Number of Frames \n");
-		printf("Second argument: Integration Time in us. Min = 10 us, Max = 10 ms \n");
-		printf("Third argument: Frames per second (fps). Min = 1 fps. Max = 161 fps \n");
+		printf("Second argument: Integration Time in us. Min = 33.75us, Max = 22020us \n");
 		printf("Please try again.\n");
 		goto exit;
 	}
 	
-	clkfreq = 500;
+	clkfreq = 2000;
 	frames = abs(atoi(argv[1]));
-	frames++; //The first frame always contains junk data, so we skip it. Therefore, we add an extra frame here for parity. :)
+	frames++; //first frame = junk data
 	intgr_time = abs(atof(argv[2]));
-	fps = abs(atof(argv[3]));
+	//fps = abs(atof(argv[3]));
 	
 	if(intgr_time < MIN_INTGR_TIME || intgr_time > MAX_INTGR_TIME) {
 		goto exit;
 	}
 	
 	result = NO_ERR;
-
-	if (fps >= (int) (S_TO_uS/prog_total_cycles/(1000/clkfreq)) || fps < 1)
-	{
-		fps = (int) (S_TO_uS/prog_total_cycles);
-		printf("Warning: Invalid fps argument; Fps automatically set to its maximum value.\n");
-	}
 exit:
 	return result;
 }
 
 static uint32_t Delay_Calculation(void)
 {
-	intgr_delay=(int) intgr_time*(clkfreq/1000);  //Kinda useless when your clock is 1000 KHz but keeping this here in case the clock frequency changes again
-	extra_time = ((S_TO_uS/fps) - (KHZ_TO_MHZ*prog_total_cycles)/clkfreq)*(clkfreq/1000); // ^--- I should play the lottery next time; now the clock frequency is 500 KHz 
+	intgr_delay=(int) (1000*intgr_time)/clkfreq;  //Better safe than sorry
+	//extra_time = (1/fps) - (intgr_time/S_TO_uS) - ((1/(clkfreq * KHZ_TO_MHZ)/2*(PIXELS*2+1))+(1/(clkfreq*KHZ_TO_MHZ)/4*3));  <----- TODO
 	return NO_ERR;
 }
 
@@ -231,7 +221,6 @@ static uint32_t Mem_Alloc(void)
 	
 	pru_shared_ram[Pixels_Offset] = PIXELS;
 	pru_shared_ram[Frames_Offset] = frames;
-	pru_shared_ram[ExtraTime_Offset] = extra_time;
 	pru_shared_ram[DDR_Addr_Offset] = ddr_address; 
 	pru_shared_ram[DDR_Size_Offset] = sample_len;
 	pru_shared_ram[Integr_Time] = intgr_delay;
@@ -274,12 +263,8 @@ exit:
 static void Wait_For_PRUs(void)
 {
 	while(pru_shared_ram[Handshake0_Offset] != 55255);	//Wait for PRU0 to finish.
-
-	//printf("PRU0 handshake sent\n");
 	prussdrv_pru_wait_event(PRU_EVTOUT_1);	//Wait for PRU1 to finish.
-	//printf("PRU1 handshake sent\n");
 	prussdrv_pru_clear_event (PRU_EVTOUT_1, PRU1_ARM_INTERRUPT);
-	//printf("PRU clear event sent\n");
 }
 
 static uint32_t Deinit_PRU(void)

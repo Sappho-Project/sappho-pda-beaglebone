@@ -23,7 +23,6 @@
 * for any damages caused by use of this software.   *
 *                                                   *
 *****************************************************
-
 *****************************************************
 *                                                   *
 * Adapted for the S,AP.P.H.O PDA project by:        *
